@@ -113,6 +113,39 @@ checkoutTests = describe "checkout" $ do
     it "simple nth" $
       checkout sampleCatalog [NthFree 1 7] sampleInventory basket `shouldBe`
         Right (remaining, 7*785)
+  describe "LEVEL UP" $ do
+    let basket = M.fromList [(1, 8)]
+        remaining = M.fromList
+                      [ (1, 4)
+                      , (2, 4)
+                      , (3, 8)
+                      , (4, 1)
+                      , (5, 43234)
+                      ]
+    it "bad" $
+      checkout sampleCatalog [Grouped (-1) 6 1000, Grouped 133 2 500] sampleInventory basket `shouldBe`
+        Right (remaining, 8*785)
+    it "same product id, grouped" $
+      checkout sampleCatalog [Grouped 1 6 1000, Grouped 1 2 500] sampleInventory basket `shouldBe`
+        Right (remaining, 1500)
+    it "same product id, mixed" $
+      checkout sampleCatalog [Grouped 1 5 1000, NthFree 1 2] sampleInventory basket `shouldBe`
+        Right (remaining, 1000 + 2*785)
+    it "same product id, mixed, useless" $
+      checkout sampleCatalog [Grouped 1 6 1000, NthFree 1 2] sampleInventory basket `shouldBe`
+        Right (remaining, 1000 + 2*785)
+    it "same product, size X" $
+      checkout sampleCatalog (map (Rebate 1) [500..520]) sampleInventory basket `shouldBe`
+        Right (remaining, 500*8)
+    it "same product, size XL" $ do
+      pendingWith "uncomment this if you feel confident"
+      checkout sampleCatalog (map (Rebate 1) (reverse [500..600])) sampleInventory basket `shouldBe`
+        Right (remaining, 500*8)
+    it "same product, size XXL" $ do
+      pendingWith "uncomment this if you feel confident"
+      checkout sampleCatalog (map (Rebate 1) [500..1000]) sampleInventory basket `shouldBe`
+        Right (remaining, 500*8)
+
 
 mapTests :: Spec
 mapTests = describe "MyMap tests" $ do
@@ -166,15 +199,15 @@ mapTests = describe "MyMap tests" $ do
         let mp = M.fromList lst :: M.Map String Int
             lst' = M.toList mp
         in  SM.lfold (*) 1 lst' == product (map snd lst')
-    describe "intersectionWith" $
-      prop "prop" $ \lst1 lst2 ->
-        let mp1 = M.fromList lst1 :: M.Map Int String
-            lst1' = M.toList mp1
-            mp2 = M.fromList lst2 :: M.Map Int Int
-            lst2' = M.toList mp2
-        in  M.fromList (SM.intersectionWith replicate lst2' lst1') == 
-            M.merge M.dropMissing M.dropMissing (M.zipWithMatched (const replicate)) mp2 mp1
-    
+    -- describe "intersectionWith" $
+    --   prop "prop" $ \lst1 lst2 ->
+    --     let mp1 = M.fromList lst1 :: M.Map Int String
+    --         lst1' = M.toList mp1
+    --         mp2 = M.fromList lst2 :: M.Map Int Int
+    --         lst2' = M.toList mp2
+    --     in  M.fromList (SM.intersectionWith replicate lst2' lst1') ==
+    --         M.merge M.dropMissing M.dropMissing (M.zipWithMatched (const replicate)) mp2 mp1
+
 
 main :: IO ()
 main = hspec $ do

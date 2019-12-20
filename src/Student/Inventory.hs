@@ -119,7 +119,8 @@ checkout
   -> Inventory -- ^ current inventory
   -> Basket -- ^ customer basket
   -> Either Problem (Inventory, Price) -- ^ if this succeeds, return the basket total cost and the updated inventory.
-checkout catalog rebates inventory basket = undefined
+checkout catalog rebates inventory basket = Right (inventory, 0)
+  
 
 
 -- | Retrieves an item price from the catalog. Can fail if the item is
@@ -148,4 +149,8 @@ computePrice
   :: [Rebates]
   -> M.Map ItemId (Quantity, Price)
   -> Price
-computePrice = undefined
+computePrice rebates items = M.foldl itemsTotalPrice 0 items
+  where
+--    itemsTotalPrice:: prices -> ItemId (Quantity, Price) -> prices
+    itemsTotalPrice a b = a + case b of
+      (q, p) -> cost q p
