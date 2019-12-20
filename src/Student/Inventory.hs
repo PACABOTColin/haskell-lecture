@@ -1,7 +1,7 @@
 module Student.Inventory where
 
 import qualified Data.Map.Strict as M
--- import qualified Data.Map.Merge.Strict as M
+import qualified Data.Map.Merge.Strict as M
 
 data ItemType
   = Clothing
@@ -119,17 +119,25 @@ checkout
   -> Inventory -- ^ current inventory
   -> Basket -- ^ customer basket
   -> Either Problem (Inventory, Price) -- ^ if this succeeds, return the basket total cost and the updated inventory.
-checkout catalog rebates inventory basket = Right (inventory, 0)
-  
+checkout catalog rebates inventory basket =
+   case (updateInventory inventory basket) of
+     Left _ -> Left OutOfStock
+     Right inventaireOk -> case (transformIntoSpecialMap basket catalog) of
+       Left _ -> Left DescriptionNotFound
+       Right mapOk -> Right (inventaireOk, (computePrice rebates mapOk))
+
+
+transformIntoSpecialMap :: Basket -> Catalog -> Either Problem (M.Map ItemId (Quantity, Price))
+transformIntoSpecialMap basket catalogue = M.mergeA M.dropMissing (M.traverseMissing missingInCatalog) (M.zipWithAMatched quandOK) catalogue basket
+  where
+    missingInCatalog _ _ = Left DescriptionNotFound
+    quandOK _ partCatalog partBask = Right (partBask, getPrice partCatalog)
 
 
 -- | Retrieves an item price from the catalog. Can fail if the item is
 -- unknown.
-getItemPrice
-  :: Catalog
-  -> ItemId
-  -> Either Problem Price
-getItemPrice catalog id = case M.lookup id catalog of 
+getItemPrice :: Catalog -> ItemId -> Either Problem Price
+getItemPrice catalog ident = case M.lookup ident catalog of
   Just item -> Right (getPrice item)
   Nothing -> Left DescriptionNotFound
 
@@ -137,20 +145,28 @@ getItemPrice catalog id = case M.lookup id catalog of
 -- | Update the inventory by removing all items from the basket. This could
 -- fail with `Left OutOfStock` if the inventory is not sufficiently
 -- stocked.
-updateInventory
-  :: Inventory
-  -> Basket
-  -> Either Problem Inventory
-updateInventory inv bask = undefined
+updateInventory :: Inventory -> Basket -> Either Problem Inventory
+updateInventory inv bask = M.mergeA M.preserveMissing (M.traverseMissing missingDescrpInv) (M.zipWithMaybeAMatched difference) inv bask
+  where
+    difference _ x y = if x<y
+      then
+        Left OutOfStock
+      else
+        if x == y
+          then
+            Right Nothing
+          else
+            Right (Just (x-y))
+
+    missingDescrpInv _ _ = Left DescriptionNotFound
+
 
 -- | Given a list of rebates, and a shopping basket with prices attached,
 -- return the total cost of the basket.
-computePrice
-  :: [Rebates]
-  -> M.Map ItemId (Quantity, Price)
+computePrice :: [Rebates] -> M.Map ItemId (Quantity, Price)
   -> Price
-computePrice rebates items = M.foldl itemsTotalPrice 0 items
+computePrice listRebates items = go (M.toList items)
   where
---    itemsTotalPrice:: prices -> ItemId (Quantity, Price) -> prices
-    itemsTotalPrice a b = a + case b of
-      (q, p) -> cost q p
+     go list = case list of
+        [] -> 0
+        (id,(quant,price)):next -> cost quant price + go next
