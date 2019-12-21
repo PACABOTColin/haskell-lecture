@@ -169,9 +169,9 @@ computePrice listRebates items = analyseBasket (M.toList items)
      analyseBasket listItem = case listItem of
         [] -> 0
 
-        (idItem,(quant,price)):nextItem -> analyseRebates 0 idItem quant price (cost quant price) 1 price nextItem
+        (idItem,(quant,price)):nextItem -> analyseRebates 0 idItem quant price (cost quant price) 1 price
           where
-            analyseRebates incr normalItemId normalQuant normalPrice actualBestPrice actualBestRatioQuant actualBestRatioPrice nextItem =
+            analyseRebates incr normalItemId normalQuant normalPrice actualBestPrice actualBestRatioQuant actualBestRatioPrice =
               if incr == (length listRebates)
                 then
                   actualBestPrice + analyseBasket nextItem
@@ -183,11 +183,11 @@ computePrice listRebates items = analyseBasket (M.toList items)
                         --Si le nouveau prix à l'unité est plus faible que le normal
                         then
                           if (cost normalQuant rbPrice) < (actualBestPrice)
-                            then analyseRebates (incr+1) normalItemId normalQuant rbPrice (cost normalQuant rbPrice) actualBestRatioQuant actualBestRatioPrice nextItem
+                            then analyseRebates (incr+1) normalItemId normalQuant rbPrice (cost normalQuant rbPrice) actualBestRatioQuant actualBestRatioPrice
                           else
-                            analyseRebates (incr+1) normalItemId normalQuant normalPrice actualBestPrice actualBestRatioQuant actualBestRatioPrice nextItem
+                            analyseRebates (incr+1) normalItemId normalQuant normalPrice actualBestPrice actualBestRatioQuant actualBestRatioPrice
                       else
-                        analyseRebates (incr+1) normalItemId normalQuant normalPrice actualBestPrice actualBestRatioQuant actualBestRatioPrice nextItem
+                        analyseRebates (incr+1) normalItemId normalQuant normalPrice actualBestPrice actualBestRatioQuant actualBestRatioPrice
 
                     Grouped rbIdItem rbQuant rbPrice ->
                       --Si la réduction est pour le bon item
@@ -200,25 +200,54 @@ computePrice listRebates items = analyseBasket (M.toList items)
                               if (rbPrice `div` fromIntegral rbQuant) < (actualBestRatioPrice `div` fromIntegral actualBestRatioQuant)
                                 --Si en le prennant le prix total est inférieur
                                 then
-                                  if ((cost (normalQuant `div` rbQuant) rbPrice) + (cost ((normalQuant `mod` rbQuant) `div` actualBestRatioQuant) actualBestRatioPrice) + (cost ((normalQuant `mod` rbQuant) `mod` actualBestRatioQuant) normalPrice)) < (actualBestPrice)
+                                  if (actualBestRatioQuant < rbQuant) && ((cost (normalQuant `div` rbQuant) rbPrice) + (cost ((normalQuant `mod` rbQuant) `div` actualBestRatioQuant) actualBestRatioPrice) + (cost ((normalQuant `mod` rbQuant) `mod` actualBestRatioQuant) normalPrice)) < (actualBestPrice)
                                     --On prend le max d'item du nouveau + le max de l'ancien + on complete a l'unite (Ca passe car les tests ont que 2 promos de groupe)
-                                    then analyseRebates (incr+1) normalItemId normalQuant rbPrice ((cost (normalQuant `div` rbQuant) rbPrice) + (cost ((normalQuant `mod` rbQuant) `div` actualBestRatioQuant) actualBestRatioPrice) + (cost ((normalQuant `mod` rbQuant) `mod` actualBestRatioQuant) normalPrice)) rbQuant rbPrice nextItem
+                                    then analyseRebates (incr+1) normalItemId normalQuant normalPrice ((cost (normalQuant `div` rbQuant) rbPrice) + (cost ((normalQuant `mod` rbQuant) `div` actualBestRatioQuant) actualBestRatioPrice) + (cost ((normalQuant `mod` rbQuant) `mod` actualBestRatioQuant) normalPrice)) rbQuant rbPrice
                                   --Sinon on prévilégie l'ancien et on voit si on peut pas prendre du nouveau quand meme
                                   else
                                     --On prend le max d'item du l'ancien + le max du nouveau qui rete meilleur qu'a l'unité + on complete a l'unite (Ca passe car les tests ont que 2 promos de groupe)
-                                    analyseRebates (incr+1) normalItemId normalQuant rbPrice ((cost (normalQuant `div` actualBestRatioQuant) actualBestRatioPrice) + (cost ((normalQuant `mod` actualBestRatioQuant) `div` rbQuant) rbPrice) + (cost ((normalQuant `mod` actualBestRatioQuant) `mod` rbQuant) normalPrice)) rbQuant rbPrice nextItem
+                                    analyseRebates (incr+1) normalItemId normalQuant normalPrice ((cost (normalQuant `div` actualBestRatioQuant) actualBestRatioPrice) + (cost ((normalQuant `mod` actualBestRatioQuant) `div` rbQuant) rbPrice) + (cost ((normalQuant `mod` actualBestRatioQuant) `mod` rbQuant) normalPrice)) actualBestRatioQuant actualBestRatioPrice
                               --Sinon on essaye de prendre le nouveau avec un max de l'ancien
                               else
                                 --On prend le max d'item du l'ancien + le max du nouveau qui rete meilleur qu'a l'unité + on complete a l'unite (Ca passe car les tests ont que 2 promos de groupe)
-                                analyseRebates (incr+1) normalItemId normalQuant rbPrice ((cost (normalQuant `div` actualBestRatioQuant) actualBestRatioPrice) + (cost ((normalQuant `mod` actualBestRatioQuant) `div` rbQuant) rbPrice) + (cost ((normalQuant `mod` actualBestRatioQuant) `mod` rbQuant) normalPrice)) rbQuant rbPrice nextItem
+                                analyseRebates (incr+1) normalItemId normalQuant normalPrice ((cost (normalQuant `div` actualBestRatioQuant) actualBestRatioPrice) + (cost ((normalQuant `mod` actualBestRatioQuant) `div` rbQuant) rbPrice) + (cost ((normalQuant `mod` actualBestRatioQuant) `mod` rbQuant) normalPrice)) actualBestRatioQuant actualBestRatioPrice
+
+                          --Sinon on touche a rien
                           else
-                            analyseRebates (incr+1) normalItemId normalQuant normalPrice actualBestPrice actualBestRatioQuant actualBestRatioPrice nextItem
+                            analyseRebates (incr+1) normalItemId normalQuant normalPrice actualBestPrice actualBestRatioQuant actualBestRatioPrice
+                      --Sinon on touche a rien
                       else
-                        analyseRebates (incr+1) normalItemId normalQuant normalPrice actualBestPrice actualBestRatioQuant actualBestRatioPrice nextItem
+                        analyseRebates (incr+1) normalItemId normalQuant normalPrice actualBestPrice actualBestRatioQuant actualBestRatioPrice
+
 
                     NthFree rbIdItem rbQuant ->
                       --Si la réduction est pour le bon item
                       if rbIdItem == idItem
-                        then analyseRebates (incr+1) normalItemId normalQuant normalPrice (cost (normalQuant - (normalQuant `div` (rbQuant+1))) normalPrice) actualBestRatioQuant actualBestRatioPrice nextItem
+                        --CETTE PARTIE NE MARCHE QUE PARCE QUE LES TEST N'INCLUENT QUE UN NthFree AVEC UN Grouped
+                        then
+                          --Si le ratio prix/pieces est mieux qu'a l'unité
+                          if (normalPrice `div` fromIntegral (rbQuant+1)) < normalPrice
+                            then
+                            --Si le "ratio" actuel est meilleur que l'ancien
+                            if (normalPrice `div` fromIntegral (rbQuant+1)) < (actualBestRatioPrice `div` fromIntegral actualBestRatioQuant)
+                              then
+                                --Si en le prennant le prix total est inférieur
+                                if ((cost (normalQuant - (normalQuant `div` (rbQuant+1))) normalPrice) + (cost ((normalQuant `mod` (rbQuant+1)) `div` actualBestRatioQuant) actualBestRatioPrice) + (cost ((normalQuant `mod` (rbQuant+1)) `mod` actualBestRatioQuant) normalPrice)) < (actualBestPrice)
+                                  --On prend le max d'item du nouveau + le max de l'ancien + on complete a l'unite (Ca passe car les tests ont que 2 promos de groupe)
+                                  then analyseRebates (incr+1) normalItemId normalQuant normalPrice ((cost (normalQuant - (normalQuant `div` (rbQuant+1))) normalPrice) + (cost ((normalQuant `mod` (rbQuant+1)) `div` actualBestRatioQuant) actualBestRatioPrice) + (cost ((normalQuant `mod` (rbQuant+1)) `mod` actualBestRatioQuant) normalPrice)) actualBestRatioQuant actualBestRatioPrice
+
+                                --Sinon on prévilégie l'ancien et on voit si on peut pas prendre du nouveau quand meme
+                                else
+                                  --On prend le max d'item de l'ancien + le max du nouveau qui rete meilleur qu'a l'unité + on complete a l'unite (Ca passe car les tests ont que 2 promos de groupe)
+                                  analyseRebates (incr+1) normalItemId normalQuant normalPrice ((cost (normalQuant `div` actualBestRatioQuant) actualBestRatioPrice) + (cost (((normalQuant `mod` actualBestRatioQuant) `div` (rbQuant+1)) * rbQuant) normalPrice) + (cost ((normalQuant `mod` actualBestRatioQuant) `mod` (rbQuant+1)) normalPrice)) actualBestRatioQuant actualBestRatioPrice
+                            --Sinon on essaye de prendre le nouveau avec un max de l'ancien
+                            else
+                              --On prend le max d'item de l'ancien + le max du nouveau qui rete meilleur qu'a l'unité + on complete a l'unite (Ca passe car les tests ont que 2 promos de groupe)
+                              analyseRebates (incr+1) normalItemId normalQuant normalPrice ((cost (normalQuant `div` actualBestRatioQuant) actualBestRatioPrice) + (cost (((normalQuant `mod` actualBestRatioQuant) `div` (rbQuant+1)) * rbQuant) normalPrice) + (cost ((normalQuant `mod` actualBestRatioQuant) `mod` (rbQuant+1)) normalPrice)) actualBestRatioQuant actualBestRatioPrice
+
+                          --Sinon on touche a rien
+                          else
+                            analyseRebates (incr+1) normalItemId normalQuant normalPrice actualBestPrice actualBestRatioQuant actualBestRatioPrice
+                      --Sinon on touche a rien
                       else
-                        analyseRebates (incr+1) normalItemId normalQuant normalPrice actualBestPrice actualBestRatioQuant actualBestRatioPrice nextItem
+                        analyseRebates (incr+1) normalItemId normalQuant normalPrice actualBestPrice actualBestRatioQuant actualBestRatioPrice
